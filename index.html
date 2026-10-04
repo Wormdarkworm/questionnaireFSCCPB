@@ -97,6 +97,29 @@
             responses: []
         };
 
+        // Helper pour obtenir la référence de la collection
+        function getResponsesCollection() {
+            return collection(db, 'satisfaction_responses');
+        }
+
+        // Écoute des données en temps réel
+        function initFirestoreListener() {
+            const collectionRef = getResponsesCollection();
+
+            onSnapshot(collectionRef, (snapshot) => {
+                const data = [];
+                snapshot.forEach((docSnap) => {
+                    data.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                window.appState.responses = data;
+                if (window.renderDashboard) {
+                    window.renderDashboard();
+                }
+            }, (error) => {
+                console.error("Erreur d'écoute Firestore:", error);
+            });
+        }
+        
         // Authentification Firebase
         async function authenticate() {
             try {
@@ -126,29 +149,6 @@
                 authenticate();
             }
         });
-
-        // Helper pour obtenir la référence de la collection
-        function getResponsesCollection() {
-            return collection(db, 'satisfaction_responses');
-        }
-
-        // Écoute des données en temps réel
-        function initFirestoreListener() {
-            const collectionRef = getResponsesCollection();
-
-            onSnapshot(collectionRef, (snapshot) => {
-                const data = [];
-                snapshot.forEach((docSnap) => {
-                    data.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                window.appState.responses = data;
-                if (window.renderDashboard) {
-                    window.renderDashboard();
-                }
-            }, (error) => {
-                console.error("Erreur d'écoute Firestore:", error);
-            });
-        }
 
         // Sauvegarde d'une réponse
         window.saveResponseToCloud = async function(responseData) {
