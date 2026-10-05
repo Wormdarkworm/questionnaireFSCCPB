@@ -59,7 +59,8 @@
             orderBy, 
             getDocs, 
             deleteDoc, 
-            doc 
+            doc,
+            enableIndexedDbPersistence 
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { 
             getAuth, 
@@ -81,12 +82,11 @@
         // Initialisation Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        import { enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code == 'failed-precondition') {
+            if (err.code === 'failed-precondition') {
                 console.warn("La persistance a échoué : plusieurs onglets ouverts.");
-            } else if (err.code == 'unimplemented') {
+            } else if (err.code === 'unimplemented') {
                 console.warn("Le navigateur ne supporte pas la persistance.");
             }
         });
@@ -106,12 +106,10 @@
             responses: []
         };
 
-        // Helper pour obtenir la référence de la collection
         function getResponsesCollection() {
             return collection(db, 'satisfaction_responses');
         }
 
-        // Écoute des données en temps réel
         function initFirestoreListener() {
             const collectionRef = getResponsesCollection();
 
@@ -121,7 +119,7 @@
                     data.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 window.appState.responses = data;
-                if typeof window.renderDashboard === 'function') {
+                if (typeof window.renderDashboard === 'function') {
                     window.renderDashboard(data);
                 } else if (typeof window.updateDashboardUI === 'function') {
                     window.updateDashboardUI(data);
@@ -133,7 +131,6 @@
             });
         }
         
-        // Authentification Firebase
         async function authenticate() {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -146,7 +143,6 @@
             }
         }
 
-        // Suivi de l'état d'authentification
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 window.appState.user = user;
@@ -163,7 +159,6 @@
             }
         });
 
-        // Sauvegarde d'une réponse
         window.saveResponseToCloud = async function(responseData) {
             if (!window.appState.user) {
                 await authenticate();
@@ -184,7 +179,6 @@
             }
         };
 
-        // Suppression de toutes les données (Action Responsable)
         window.clearCloudData = async function() {
             if (!window.appState.user) return;
             try {
@@ -202,7 +196,7 @@
 </head>
 <body class="h-full flex flex-col justify-between text-slate-800 antialiased font-sans select-none">
 
-    <!-- En-tête officiel inspiré de la charte France Services -->
+    <!-- En-tête officiel -->
     <header class="bg-white border-b-2 border-marianne-blue shadow-sm sticky top-0 z-30">
         <div class="max-w-6xl mx-auto px-4 py-2.5 flex justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -224,7 +218,7 @@
                 </div>
             </div>
 
-            <!-- Boutons de contrôle & Statut Synchronisation -->
+            <!-- Controls & Sync -->
             <div class="flex items-center space-x-2">
                 <div class="hidden sm:flex items-center space-x-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-medium text-slate-600">
                     <span id="cloud-status" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -257,7 +251,7 @@
                         </div>
                     </div>
 
-                    <!-- ÉTAPE 1 : Motif de la visite -->
+                    <!-- ÉTAPE 1 : Motif -->
                     <div id="step-1" class="step-content">
                         <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mb-1">Quel était le motif de votre démarche ?</h2>
                         <p class="text-slate-500 mb-5 text-xs sm:text-sm">Sélectionnez le domaine principal concerné.</p>
@@ -325,7 +319,7 @@
                         </div>
                     </div>
 
-                    <!-- ÉTAPE 2 : Accueil & Écoute -->
+                    <!-- ÉTAPE 2 : Accueil -->
                     <div id="step-2" class="step-content hidden">
                         <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mb-1">Comment évaluez-vous l'accueil et l'écoute ?</h2>
                         <p class="text-slate-500 mb-6 text-xs sm:text-sm">Touchez l'émoticône de votre choix.</p>
@@ -425,7 +419,7 @@
                         </div>
                     </div>
 
-                    <!-- ÉTAPE 4 : Clarté & Autonomie -->
+                    <!-- ÉTAPE 4 : Autonomie -->
                     <div id="step-4" class="step-content hidden">
                         <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mb-1">Les explications vous rendent-elles plus autonome ?</h2>
                         <p class="text-slate-500 mb-5 text-xs sm:text-sm">Pour renouveler votre démarche ultérieurement.</p>
@@ -489,7 +483,7 @@
                         </div>
                     </div>
 
-                    <!-- ÉTAPE 6 : Remarques optionnelles -->
+                    <!-- ÉTAPE 6 : Remarques -->
                     <div id="step-6" class="step-content hidden">
                         <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 mb-1">Remarques ou suggestions (facultatif)</h2>
                         <p class="text-slate-500 mb-4 text-xs sm:text-sm">Aidez-nous à nous améliorer.</p>
@@ -498,7 +492,6 @@
                             <textarea id="commentaire" name="commentaire" rows="3" placeholder="Écrivez votre message ici..." class="w-full p-3.5 rounded-2xl border-2 border-slate-200 focus:border-marianne-blue focus:outline-none text-sm text-slate-800"></textarea>
                         </div>
 
-                        <!-- Optionnel : Agent référant -->
                         <div class="mb-2">
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Code/Nom de l'agent accompagnateur (facultatif)</label>
                             <input type="text" name="agent_id" placeholder="Ex: Agent 1, Poste 2..." class="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:border-marianne-blue focus:outline-none">
@@ -526,190 +519,103 @@
                 </form>
             </div>
 
-            <!-- ÉCRAN DE CONFIRMATION APRÈS ENVOI -->
+            <!-- ÉCRAN DE CONFIRMATION -->
             <div id="thank-you-screen" class="hidden bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center my-auto">
-                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
                     <i class="fa-solid fa-check"></i>
                 </div>
-                <h2 class="text-xl sm:text-2xl font-black text-slate-900 mb-2">Merci pour votre avis !</h2>
-                <p class="text-slate-600 text-sm max-w-md mx-auto mb-6">Votre réponse a été transmise en temps réel à l'équipe France Services.</p>
-                
-                <div class="p-3 bg-slate-50 rounded-xl max-w-xs mx-auto mb-6 text-xs text-slate-400">
-                    Réinitialisation automatique dans <span id="countdown" class="font-bold text-slate-700">5</span>s.
-                </div>
-
-                <button onclick="resetSurvey()" class="px-6 py-3 bg-marianne-blue text-white rounded-xl font-bold shadow-md hover:bg-marianne-blueHover transition text-xs sm:text-sm">
-                    Nouveau questionnaire usager
+                <h2 class="text-2xl font-extrabold text-slate-900 mb-2">Merci pour votre avis !</h2>
+                <p class="text-slate-500 mb-6 text-sm">Votre réponse a bien été enregistrée. Elle contribue à l'amélioration continue de nos services.</p>
+                <button onclick="resetSurvey()" class="px-6 py-3 bg-marianne-blue hover:bg-marianne-blueHover text-white font-bold rounded-xl transition text-sm">
+                    Nouveau questionnaire
                 </button>
-            </div>
-
-            <!-- VUE TABLEAU DE BORD RESPONSABLE (EN TEMPS RÉEL) -->
-            <div id="admin-dashboard" class="hidden bg-white rounded-3xl shadow-xl border border-slate-100 p-4 sm:p-8">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-slate-200 gap-4">
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="bg-marianne-blue text-white text-[10px] font-bold px-2 py-0.5 rounded">TEMPS RÉEL</span>
-                            <h2 class="text-xl sm:text-2xl font-black text-slate-900">Tableau de Bord Responsable</h2>
-                        </div>
-                        <p class="text-slate-500 text-xs mt-0.5">Centralisation des avis saisis par l'ensemble des agents sur smartphone/tablette.</p>
-                    </div>
-
-                    <!-- Filtre de Période & Actions -->
-                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                        <select id="filter-period" onchange="window.renderDashboard()" class="px-3 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold focus:outline-none border border-slate-200">
-                            <option value="all">Toutes les dates</option>
-                            <option value="today">Aujourd'hui</option>
-                            <option value="month">Ce mois-ci</option>
-                        </select>
-
-                        <button onclick="exportCSV()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition flex items-center space-x-1.5">
-                            <i class="fa-solid fa-file-csv"></i>
-                            <span>Exporter CSV</span>
-                        </button>
-                        
-                        <button onclick="confirmClearData()" class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5">
-                            <i class="fa-solid fa-trash"></i>
-                            <span class="hidden sm:inline">Purger</span>
-                        </button>
-
-                        <button onclick="closeAdmin()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold transition flex items-center space-x-1.5">
-                            <i class="fa-solid fa-xmark"></i>
-                            <span>Fermer</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Cartes KPI principal -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                    <div class="p-4 bg-blue-50 border border-blue-100 rounded-2xl">
-                        <div class="text-xs font-bold text-blue-700 mb-0.5">Total Réponses</div>
-                        <div id="stat-total" class="text-2xl sm:text-3xl font-black text-blue-900">0</div>
-                    </div>
-
-                    <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl">
-                        <div class="text-xs font-bold text-emerald-700 mb-0.5">Satisfaction Accueil</div>
-                        <div class="flex items-baseline space-x-1">
-                            <span id="stat-avg-score" class="text-2xl sm:text-3xl font-black text-emerald-900">0.0</span>
-                            <span class="text-xs text-emerald-600 font-bold">/ 5</span>
-                        </div>
-                    </div>
-
-                    <div class="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
-                        <div class="text-xs font-bold text-amber-700 mb-0.5">Taux Recommandation</div>
-                        <div id="stat-recom-rate" class="text-2xl sm:text-3xl font-black text-amber-900">0%</div>
-                    </div>
-
-                    <div class="p-4 bg-purple-50 border border-purple-100 rounded-2xl">
-                        <div class="text-xs font-bold text-purple-700 mb-0.5">Autonomie Transmise</div>
-                        <div id="stat-autonomy-rate" class="text-2xl sm:text-3xl font-black text-purple-900">0%</div>
-                    </div>
-                </div>
-
-                <!-- Analyse Graphique / Histogrammes -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
-                        <h3 class="font-bold text-xs sm:text-sm text-slate-800 mb-3 flex items-center space-x-2">
-                            <i class="fa-solid fa-pie-chart text-marianne-blue"></i>
-                            <span>Démarches sollicitées (Motifs)</span>
-                        </h3>
-                        <div id="motif-breakdown" class="space-y-2.5">
-                            <!-- Injected by JS -->
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
-                        <h3 class="font-bold text-xs sm:text-sm text-slate-800 mb-3 flex items-center space-x-2">
-                            <i class="fa-solid fa-clock text-marianne-blue"></i>
-                            <span>Perception du Temps d'Attente</span>
-                        </h3>
-                        <div id="wait-breakdown" class="space-y-2.5">
-                            <!-- Injected by JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Derniers Avis / Commentaires -->
-                <div class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
-                    <h3 class="font-bold text-xs sm:text-sm text-slate-800 mb-3 flex items-center space-x-2">
-                        <i class="fa-solid fa-comments text-marianne-blue"></i>
-                        <span>Dernières remarques d'usagers</span>
-                    </h3>
-                    <div id="comments-list" class="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                        <!-- Injected by JS -->
-                    </div>
-                </div>
-
             </div>
 
         </div>
     </main>
 
-    <!-- MODAL CODE ACCÈS RESPONSABLE -->
+    <!-- MODAL ESPACE RESPONSABLE -->
     <div id="admin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl">
-            <div class="text-center mb-5">
-                <div class="w-12 h-12 bg-blue-100 text-marianne-blue rounded-2xl flex items-center justify-center text-xl mx-auto mb-2">
-                    <i class="fa-solid fa-lock"></i>
+        <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-line text-marianne-blue text-xl"></i>
+                    <h3 class="font-bold text-slate-900 text-lg">Tableau de Bord - Espace Responsable</h3>
                 </div>
-                <h3 class="text-base font-bold text-slate-900">Code Responsable</h3>
-                <p class="text-xs text-slate-500 mt-1">Saisissez le code pour consulter le tableau de bord (Code : 1234)</p>
+                <button onclick="closeAdminModal()" class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6">
+                <!-- Stats récapitulatives -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <div class="text-xs font-semibold text-blue-600 uppercase">Réponses Total</div>
+                        <div id="stat-total" class="text-2xl font-black text-slate-900 mt-1">0</div>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                        <div class="text-xs font-semibold text-emerald-600 uppercase">Satisfaction Moy.</div>
+                        <div id="stat-satisfaction" class="text-2xl font-black text-slate-900 mt-1">-</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                        <div class="text-xs font-semibold text-purple-600 uppercase">Autonomie</div>
+                        <div id="stat-autonomie" class="text-2xl font-black text-slate-900 mt-1">-</div>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                        <div class="text-xs font-semibold text-amber-600 uppercase">Recommandation</div>
+                        <div id="stat-reco" class="text-2xl font-black text-slate-900 mt-1">-</div>
+                    </div>
+                </div>
+
+                <!-- Liste des derniers avis -->
+                <div>
+                    <h4 class="font-bold text-slate-900 text-sm mb-3">Dernières réponses enregistrées</h4>
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                        <div class="max-h-60 overflow-y-auto divide-y divide-slate-100" id="admin-responses-list">
+                            <div class="p-4 text-center text-xs text-slate-400">Aucune donnée pour le moment.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <form onsubmit="verifyAdminPass(event)">
-                <div class="mb-4">
-                    <input type="password" id="admin-pass" placeholder="****" class="w-full text-center tracking-widest text-xl p-2.5 border-2 border-slate-200 rounded-xl focus:border-marianne-blue focus:outline-none font-bold">
-                    <div id="pass-error" class="text-xs text-red-500 mt-1 text-center hidden">Code erroné (Essayer : 1234)</div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="closeAdminModal()" class="py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 transition text-xs">
-                        Annuler
-                    </button>
-                    <button type="submit" class="py-2.5 rounded-xl bg-marianne-blue hover:bg-marianne-blueHover text-white font-bold transition text-xs">
-                        Accéder
-                    </button>
-                </div>
-            </form>
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                <button onclick="window.clearCloudData()" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>Réinitialiser les données</span>
+                </button>
+                <button onclick="closeAdminModal()" class="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition">
+                    Fermer
+                </button>
+            </div>
         </div>
     </div>
 
-    <footer class="bg-white border-t border-slate-200 py-2.5 text-center text-[11px] text-slate-500">
-        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-1">
-            <div>
-                <span>Mesure de la qualité de service — <strong>France Services</strong></span>
-            </div>
-            <div class="flex space-x-3 text-slate-400">
-                <span>Réseau National</span>
-                <span>•</span>
-                <span>Données sécurisées</span>
-            </div>
-        </div>
-    </footer>
-
+    <!-- LOGIQUE JS COMPLÈTE DU FORMULAIRE -->
     <script>
-        // Form Navigation State
         let currentStep = 1;
         const totalSteps = 6;
-        let countdownTimer = null;
-
-        // UI references
-        const stepIndicator = document.getElementById('step-indicator');
-        const progressBar = document.getElementById('progress-bar');
-        const progressPercent = document.getElementById('progress-percent');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const submitBtn = document.getElementById('submit-btn');
 
         function updateStepUI() {
             for (let i = 1; i <= totalSteps; i++) {
-                document.getElementById(`step-${i}`).classList.add('hidden');
+                const el = document.getElementById(`step-${i}`);
+                if (el) {
+                    if (i === currentStep) {
+                        el.classList.remove('hidden');
+                    } else {
+                        el.classList.add('hidden');
+                    }
+                }
             }
-            document.getElementById(`step-${currentStep}`).classList.remove('hidden');
 
-            stepIndicator.textContent = `Étape ${currentStep} sur ${totalSteps}`;
-            const percentage = Math.round((currentStep / totalSteps) * 100);
-            progressBar.style.width = `${percentage}%`;
-            progressPercent.textContent = `${percentage}%`;
+            document.getElementById('step-indicator').textContent = `Étape ${currentStep} sur ${totalSteps}`;
+            const percent = Math.round((currentStep / totalSteps) * 100);
+            document.getElementById('progress-percent').textContent = `${percent}%`;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const submitBtn = document.getElementById('submit-btn');
 
             if (currentStep === 1) {
                 prevBtn.classList.add('invisible');
@@ -728,16 +634,12 @@
 
         function validateCurrentStep() {
             const currentStepEl = document.getElementById(`step-${currentStep}`);
-            const radios = currentStepEl.querySelectorAll('input[type="radio"]');
-            
-            if (radios.length > 0) {
-                let checked = false;
-                radios.forEach(radio => {
-                    if (radio.checked) checked = true;
-                });
+            const inputs = currentStepEl.querySelectorAll('input[required]');
+            for (let input of inputs) {
+                const name = input.name;
+                const checked = currentStepEl.querySelector(`input[name="${name}"]:checked`);
                 if (!checked) {
-                    currentStepEl.classList.add('animate-bounce');
-                    setTimeout(() => currentStepEl.classList.remove('animate-bounce'), 500);
+                    alert('Veuillez sélectionner une option avant de continuer.');
                     return false;
                 }
             }
@@ -745,261 +647,84 @@
         }
 
         function changeStep(delta) {
-            if (delta > 0 && !validateCurrentStep()) return;
-
+            if (delta > 0 && !validateCurrentStep()) {
+                return;
+            }
             currentStep += delta;
             if (currentStep < 1) currentStep = 1;
             if (currentStep > totalSteps) currentStep = totalSteps;
-
             updateStepUI();
         }
 
-        // Form Submission -> Push to Firebase
         async function submitForm(e) {
             e.preventDefault();
-            
-            const formData = new FormData(e.target);
-            const responseData = {
-                motif: formData.get('motif'),
-                note_accueil: parseInt(formData.get('note_accueil') || '0'),
-                temps_attente: formData.get('temps_attente'),
-                autonomie: formData.get('autonomie'),
-                recommandation: formData.get('recommandation'),
-                commentaire: formData.get('commentaire') || '',
-                agent_id: formData.get('agent_id') || 'Agent Mobile'
-            };
+            if (!validateCurrentStep()) return;
 
-            // Envoi vers Firebase en temps réel
-            if (window.saveResponseToCloud) {
-                await window.saveResponseToCloud(responseData);
-            }
+            const form = document.getElementById('satisfaction-form');
+            const formData = new FormData(form);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
 
-            // Affichage écran de remerciement
+            await window.saveResponseToCloud(data);
+
             document.getElementById('survey-container').classList.add('hidden');
             document.getElementById('thank-you-screen').classList.remove('hidden');
-
-            let timeLeft = 5;
-            const countdownEl = document.getElementById('countdown');
-            countdownEl.textContent = timeLeft;
-
-            clearInterval(countdownTimer);
-            countdownTimer = setInterval(() => {
-                timeLeft--;
-                countdownEl.textContent = timeLeft;
-                if (timeLeft <= 0) {
-                    clearInterval(countdownTimer);
-                    resetSurvey();
-                }
-            }, 1000);
         }
 
         function resetSurvey() {
-            clearInterval(countdownTimer);
             document.getElementById('satisfaction-form').reset();
             currentStep = 1;
             updateStepUI();
-
             document.getElementById('thank-you-screen').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.add('hidden');
             document.getElementById('survey-container').classList.remove('hidden');
         }
 
-        // Modale d'authentification responsable
         function openAdminModal() {
             document.getElementById('admin-modal').classList.remove('hidden');
-            document.getElementById('admin-pass').focus();
+            renderDashboard(window.appState.responses || []);
         }
 
         function closeAdminModal() {
             document.getElementById('admin-modal').classList.add('hidden');
-            document.getElementById('pass-error').classList.add('hidden');
-            document.getElementById('admin-pass').value = '';
         }
 
-        function verifyAdminPass(e) {
-            e.preventDefault();
-            const pass = document.getElementById('admin-pass').value;
-            if (pass === '1234') {
-                closeAdminModal();
-                showDashboard();
-            } else {
-                document.getElementById('pass-error').classList.remove('hidden');
-            }
-        }
+        function renderDashboard(data) {
+            document.getElementById('stat-total').textContent = data.length;
 
-        function showDashboard() {
-            document.getElementById('survey-container').classList.add('hidden');
-            document.getElementById('thank-you-screen').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.remove('hidden');
+            if (data.length > 0) {
+                const notes = data.map(d => parseInt(d.note_accueil)).filter(n => !isNaN(n));
+                const avgNote = notes.length ? (notes.reduce((a, b) => a + b, 0) / notes.length).toFixed(1) : '-';
+                document.getElementById('stat-satisfaction').textContent = avgNote !== '-' ? `${avgNote} / 5` : '-';
 
-            window.renderDashboard();
-        }
+                const autOui = data.filter(d => d.autonomie === 'Oui').length;
+                document.getElementById('stat-autonomie').textContent = `${Math.round((autOui / data.length) * 100)}%`;
 
-        function closeAdmin() {
-            resetSurvey();
-        }
+                const recoOui = data.filter(d => d.recommandation === 'Oui').length;
+                document.getElementById('stat-reco').textContent = `${Math.round((recoOui / data.length) * 100)}%`;
 
-        function confirmClearData() {
-            if (confirm("Attention : Voulez-vous vraiment effacer TOUS les avis enregistrés sur la base de données centrale ?")) {
-                if (window.clearCloudData) {
-                    window.clearCloudData();
-                }
-            }
-        }
-
-        // Calcul et affichage dynamique des statistiques
-        window.renderDashboard = function(data = window.appState.responses) {
-            let responses = (window.appState && window.appState.responses) ? window.appState.responses : [];
-
-            // Application du filtre temporel
-            const period = document.getElementById('filter-period').value;
-            const now = new Date();
-
-            if (period === 'today') {
-                responses = responses.filter(r => {
-                    if (!r.timestamp) return true;
-                    const d = new Date(r.timestamp);
-                    return d.toDateString() === now.toDateString();
-                });
-            } else if (period === 'month') {
-                responses = responses.filter(r => {
-                    if (!r.timestamp) return true;
-                    const d = new Date(r.timestamp);
-                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-                });
-            }
-
-            const total = responses.length;
-            document.getElementById('stat-total').textContent = total;
-
-            if (total === 0) {
-                document.getElementById('stat-avg-score').textContent = '0.0';
-                document.getElementById('stat-recom-rate').textContent = '0%';
-                document.getElementById('stat-autonomy-rate').textContent = '0%';
-                document.getElementById('motif-breakdown').innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée sur cette période</p>';
-                document.getElementById('wait-breakdown').innerHTML = '<p class="text-xs text-slate-400 italic">Aucune donnée sur cette période</p>';
-                document.getElementById('comments-list').innerHTML = '<p class="text-xs text-slate-400 italic">Aucun commentaire</p>';
-                return;
-            }
-
-            // Note moyenne
-            const totalScore = responses.reduce((acc, r) => acc + (parseInt(r.note_accueil) || 0), 0);
-            const avgScore = (totalScore / total).toFixed(1);
-            document.getElementById('stat-avg-score').textContent = avgScore;
-
-            // Taux de recommandation
-            const recomCount = responses.filter(r => r.recommandation === 'Oui').length;
-            document.getElementById('stat-recom-rate').textContent = `${Math.round((recomCount / total) * 100)}%`;
-
-            // Autonomie
-            const autonomyCount = responses.filter(r => r.autonomie === 'Oui').length;
-            document.getElementById('stat-autonomy-rate').textContent = `${Math.round((autonomyCount / total) * 100)}%`;
-
-            // Répartition Motifs
-            const motifs = {};
-            responses.forEach(r => {
-                const key = r.motif || 'Non précisé';
-                motifs[key] = (motifs[key] || 0) + 1;
-            });
-
-            let motifHTML = '';
-            for (const [key, count] of Object.entries(motifs)) {
-                const pct = Math.round((count / total) * 100);
-                motifHTML += `
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold mb-1">
-                            <span class="text-slate-700">${key}</span>
-                            <span class="text-slate-500">${count} (${pct}%)</span>
+                const listContainer = document.getElementById('admin-responses-list');
+                listContainer.innerHTML = data.slice().reverse().map(item => `
+                    <div class="p-3 text-xs flex justify-between items-center hover:bg-slate-50">
+                        <div>
+                            <span class="font-bold text-slate-800">${item.motif || 'Non précisé'}</span>
+                            <span class="text-slate-400 ml-2">${item.timestamp ? new Date(item.timestamp).toLocaleDateString('fr-FR') : ''}</span>
+                            ${item.commentaire ? `<p class="text-slate-600 italic mt-0.5">« ${item.commentaire} »</p>` : ''}
                         </div>
-                        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                            <div class="bg-marianne-blue h-2 rounded-full" style="width: ${pct}%"></div>
-                        </div>
+                        <div class="font-bold text-marianne-blue">${item.note_accueil ? item.note_accueil + '/5 ⭐' : ''}</div>
                     </div>
-                `;
-            }
-            document.getElementById('motif-breakdown').innerHTML = motifHTML;
-
-            // Temps d'attente
-            const waits = {};
-            responses.forEach(r => {
-                const key = r.temps_attente || 'Non précisé';
-                waits[key] = (waits[key] || 0) + 1;
-            });
-
-            let waitHTML = '';
-            for (const [key, count] of Object.entries(waits)) {
-                const pct = Math.round((count / total) * 100);
-                waitHTML += `
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold mb-1">
-                            <span class="text-slate-700">${key}</span>
-                            <span class="text-slate-500">${count} (${pct}%)</span>
-                        </div>
-                        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                            <div class="bg-teal-600 h-2 rounded-full" style="width: ${pct}%"></div>
-                        </div>
-                    </div>
-                `;
-            }
-            document.getElementById('wait-breakdown').innerHTML = waitHTML;
-
-            // Commentaires
-            const comments = responses.filter(r => r.commentaire && r.commentaire.trim() !== '');
-            if (comments.length === 0) {
-                document.getElementById('comments-list').innerHTML = '<p class="text-xs text-slate-400 italic">Aucun commentaire rédigé.</p>';
+                `).join('');
             } else {
-                let commentsHTML = '';
-                comments.slice().reverse().forEach(c => {
-                    const dateStr = c.timestamp ? new Date(c.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'Récemment';
-                    commentsHTML += `
-                        <div class="p-3 bg-white border border-slate-200 rounded-xl text-xs">
-                            <div class="flex justify-between items-center text-slate-400 mb-1">
-                                <span class="font-bold text-marianne-blue">${c.motif || 'Général'}</span>
-                                <span>${dateStr}</span>
-                            </div>
-                            <p class="text-slate-700 font-medium">${c.commentaire}</p>
-                        </div>
-                    `;
-                });
-                document.getElementById('comments-list').innerHTML = commentsHTML;
+                document.getElementById('stat-satisfaction').textContent = '-';
+                document.getElementById('stat-autonomie').textContent = '-';
+                document.getElementById('stat-reco').textContent = '-';
+                document.getElementById('admin-responses-list').innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Aucune donnée pour le moment.</div>';
             }
-        };
-
-        // Exportation en CSV
-        function exportCSV() {
-            const responses = (window.appState && window.appState.responses) ? window.appState.responses : [];
-            if (responses.length === 0) {
-                alert('Aucune donnée à exporter.');
-                return;
-            }
-
-            const headers = ["ID", "Date", "Motif", "Note Accueil", "Temps Attente", "Autonomie", "Recommandation", "Commentaire", "Agent"];
-            const csvRows = [headers.join(',')];
-
-            responses.forEach(r => {
-                const row = [
-                    r.id || '',
-                    `"${r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : ''}"`,
-                    `"${r.motif || ''}"`,
-                    r.note_accueil || '',
-                    `"${r.temps_attente || ''}"`,
-                    `"${r.autonomie || ''}"`,
-                    `"${r.recommandation || ''}"`,
-                    `"${(r.commentaire || '').replace(/"/g, '""')}"`,
-                    `"${r.agent_id || ''}"`
-                ];
-                csvRows.push(row.join(','));
-            });
-
-            const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `Bilan_France_Services_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
+
+        window.renderDashboard = renderDashboard;
+        window.updateDashboardUI = renderDashboard;
     </script>
 </body>
 </html>
