@@ -112,9 +112,13 @@
                     data.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 window.appState.responses = data;
-                if (window.renderDashboard) {
-                    window.renderDashboard();
+                if typeof window.renderDashboard === 'function') {
+                    window.renderDashboard(data);
+                } else if (typeof window.updateDashboardUI === 'function') {
+                    window.updateDashboardUI(data);
                 }
+
+                window.dispatchEvent(new CustomEvent('firestoreDataUpdated', { detail: data }));
             }, (error) => {
                 console.error("Erreur d'écoute Firestore:", error);
             });
